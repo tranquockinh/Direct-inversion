@@ -154,9 +154,10 @@ backward_model.echelon()
 # check dispersion curve
 check_S_wave_velo_forward,check_R_wave_velo_forward = backward_model.check_dispersion_curve()
 print()
+
+
 # print('Checking the dispersion curve with inverted result:\n',check_R_wave_velo_forward[:,np.newaxis])
 def plot(iniThickness,iniSwave,test_Rwave,wl,invSwave,invThickness,checkRwave):
-
     iniThickness[-1] = iniThickness[-2] + 0.5*iniThickness[-2]
     invThickness[-1] = invThickness[-2] + 3
     iniThickness = np.append(0,iniThickness)
@@ -184,6 +185,8 @@ def plot(iniThickness,iniSwave,test_Rwave,wl,invSwave,invThickness,checkRwave):
     ax[1].spines['bottom'].set_color('white')
     ax[1].spines['right'].set_color('white')
     ax[1].legend()
-    plt.show()
     plt.savefig('testinversion.png')
+    plt.show()
+
+    
 plot(thickness,Swave,R_wave_velo_forward,wavelen,S_wave_inversion,thickness_for_inversion,check_R_wave_velo_forward)
