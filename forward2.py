@@ -10,29 +10,31 @@ class forward_engine(object):
         self.shear_wave_velocity = shear_wave
         self.wavelen = wavelen
 
-    def weight_atLambda(self,atLambda):
-
-        # define boundaries
+    def weight_atLambda(self,wavelength):
         z = sp.Symbol('z')
-        low = self.depth[:-1]
-        up = self.depth[1:]
-
-        cv = np.array([0.2507, -0.4341, -0.8474*2*np.pi, -0.3933*2*np.pi])
-
-        totA_term1 = (cv[0]/(cv[2]/atLambda))*(sp.exp(cv[2]/atLambda*np.inf)-sp.exp(cv[2]/atLambda*0))
-        totA_term2 = (cv[1]/(cv[3]/atLambda))*(sp.exp(cv[3]/atLambda*np.inf)-sp.exp(cv[3]/atLambda*0))
-        totA = totA_term1 + totA_term2
-
-        unit = np.zeros((self.nunber_layers))
-
-        for j in range(self.nunber_layers):
-            unit_term1 = (cv[0]/(cv[2]/atLambda))*(sp.exp(cv[2]/atLambda*up[j])-sp.exp(cv[2]/atLambda*low[j]))
-            unit_term2 = (cv[1]/(cv[3]/atLambda))*(sp.exp(cv[3]/atLambda*up[j])-sp.exp(cv[3]/atLambda*low[j]))
-            unit[j] = unit_term1 + unit_term2
-        weights = unit/totA
-
+        upper = self.depth[:-1]
+        lower = self.depth[1:]
+        c1 = 0.13
+        alpha = -2 * np.pi / wavelength
+        c2 = -0.24
+        beta = -0.3 * (2*np.pi) / wavelength
+        displ_func = c1/alpha * sp.exp(alpha * z) + c2/beta * sp.exp(beta * z)
+        total_disp_up = displ_func.subs(z, 0)
+        total_disp_low = displ_func.subs(z, np.inf)
+        total_displ = total_disp_up - total_disp_low
+        portion_displ = []
+        weights = []
+        i = 0
+        for up, low in zip(upper, lower):
+            portion_displ_up = displ_func.subs(z, up)
+            portion_displ_low = displ_func.subs(z, low)
+            portion_displ.append(portion_displ_up - portion_displ_low)
+            weights.append(portion_displ[i] / total_displ)
+            i += 1
+            if (i==len(lower)):
+                low = np.inf
         return weights
-    
+
     def weight_allLambda(self):
         rows = self.number_lambda
         cols = self.nunber_layers
@@ -40,6 +42,7 @@ class forward_engine(object):
         for idx,thisLambda in enumerate(self.wavelen):
             weights_thisLambda = self.weight_atLambda(thisLambda)
             weightMatrix[idx,:] = weights_thisLambda
+        print(weightMatrix)
         return weightMatrix
     
     def sigular_value_de(self,weightMatrix):
@@ -56,14 +59,13 @@ class forward_engine(object):
         for j in range(len(weightMatrix[0,:])):
             layerLabels.append(columns.format(j+1))
         df = DataFrame(weightMatrix,index=Index(lambdaLabels, name=Name),columns=layerLabels)
-        df.style
         return df 
-        # print(df)
 
     def dispersion_curve(self):
         S_wave_velo_forward = np.matmul(self.weight_allLambda(),self.shear_wave_velocity) 
         R_wave_velo_forward = spr * S_wave_velo_forward
         return S_wave_velo_forward,R_wave_velo_forward
+
 
 class backward_engine(forward_engine):
 
@@ -87,11 +89,9 @@ class backward_engine(forward_engine):
     def weight_allLambda_inversion(self):
         # inversion input
         depth_for_inversion = self.inversion_data()
-        # Compute the weight matrix with inversion input
         self.forward_modeling = forward_engine(depth_for_inversion, self.shearwave_for_inversion, self.full_wavelegnth)
         self.weight_matrix_full = self.forward_modeling.weight_allLambda()
         self.weight_for_inversion = self.weight_matrix_full[:self.number_invert_layers,:self.number_invert_layers]
-        # visualize the weight matrix in table
         self.forward_modeling_layers = forward_engine(depth_for_inversion, self.shearwave_for_inversion, self.wavelen_for_inversion)
         weight_for_inversion_table = self.forward_modeling_layers.weightTable()
         print()
@@ -104,7 +104,6 @@ class backward_engine(forward_engine):
 
     def inversion(self, weight_matrix, shear_wave_velocity):
         U, diagS, VT, invert_W = self.analysis_SVD(weight_matrix)
-        # S_wave_inversion = np.matmul(np.linalg.inv(self.weight_for_inversion),self.shearwave_for_inversion)
         S_wave_inversion = np.matmul(invert_W, shear_wave_velocity)
         return S_wave_inversion
 
@@ -126,18 +125,8 @@ class backward_engine(forward_engine):
         S_wave_inversion = self.inverted_shearwave_velocity()
         print('Weight matrix in inversion stage:\n',self.weight_allLambda_inversion())
         check_forward_engine = forward_engine(depth_for_inversion, S_wave_inversion, self.full_wavelegnth)
-        # check_weight_matrix = check_forward_engine.weight_allLambda()
         check_S_wave_velo_forward,check_R_wave_velo_forward = check_forward_engine.dispersion_curve()
         return check_S_wave_velo_forward,check_R_wave_velo_forward
-
-    def second_chance(self):
-        shear_waves = []
-        shear_waves.extend(self.shearwave_for_inversion)
-        while len(shear_waves) < len(self.full_wavelegnth):
-            shear_waves = np.append(shear_waves,shear_waves[-1])
-
-        _, _, _, invert_W = self.analysis_SVD(self.weight_matrix_full)
-        return print(np.matmul(invert_W, shear_waves))
 
 forward_model = forward_engine(depth,Swave,wavelen)
 S_wave_velo_forward,R_wave_velo_forward = forward_model.dispersion_curve()
@@ -145,6 +134,9 @@ print()
 print('Phase velocity in forward:\n',R_wave_velo_forward[:,np.newaxis])
 backward_model = backward_engine(n_inverted_layer)
 #############################################################
+
+
+
 # inversion results
 thickness_for_inversion = backward_model.inversion_data()
 S_wave_inversion = backward_model.inverted_shearwave_velocity()
@@ -193,4 +185,5 @@ def plot(iniThickness,iniSwave,test_Rwave,wl,invSwave,invThickness,checkRwave):
     ax[1].spines['right'].set_color('white')
     ax[1].legend()
     plt.show()
+    plt.savefig('testinversion.png')
 plot(thickness,Swave,R_wave_velo_forward,wavelen,S_wave_inversion,thickness_for_inversion,check_R_wave_velo_forward)
