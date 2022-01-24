@@ -66,7 +66,6 @@ class forward_engine(object):
         R_wave_velo_forward = spr * S_wave_velo_forward
         return S_wave_velo_forward,R_wave_velo_forward
 
-
 class backward_engine(forward_engine):
 
     def __init__(self,number_invert_layers):
@@ -134,8 +133,6 @@ print()
 print('Phase velocity in forward:\n',R_wave_velo_forward[:,np.newaxis])
 backward_model = backward_engine(n_inverted_layer)
 #############################################################
-
-
 
 # inversion results
 thickness_for_inversion = backward_model.inversion_data()
