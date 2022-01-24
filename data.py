@@ -3,16 +3,17 @@ import sympy as sp
 import tkinter
 import matplotlib.pyplot as plt
 from pandas import *
+
 # shear wave velocity
-Swave = [150,200,400,600]
+Swave = [150,200,400,600,1000,1300]
 # thickness
-thickness = [5,10,15,np.inf]
+thickness = [2,5,10,15,20,np.inf]
 depth = np.append(0,thickness)
 nLayer = len(thickness)
 # mininum, maximum and stepping wavelength
-wl_min = 1
-wl_max = 40
-wl_step = 3
+wl_min = 2
+wl_max = 60
+wl_step = 3.5
 wavelen = np.arange(wl_min,wl_max+wl_step,wl_step)
 # Poisson's ratio
 nuy = 0.3
@@ -20,6 +21,6 @@ nuy = 0.3
 spr = 0.93
 # depth to
 # wavelength ratio
-alpha = 1.0
+alpha = 1.1
 # number of layer inverted
-n_inverted_layer = 9 #len(wavelen)
+n_inverted_layer = 4 #len(wavelen)
